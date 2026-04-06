@@ -32,6 +32,13 @@ export class UI {
             this.showScreen('level-select');
         });
 
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            if (confirm('Reset all progress? This will lock all levels and mowers.')) {
+                this.save.resetAll();
+                this.showScreen('title');
+            }
+        });
+
         document.getElementById('btn-mowers').addEventListener('click', () => {
             this.showScreen('mower-select');
         });
