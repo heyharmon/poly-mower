@@ -21,10 +21,10 @@ export class Yard {
         this._terrainBumps = levelDef.terrain || [];
 
         this._buildGround();
-        this._buildFence();
         this._buildGrass();
         this._buildObstacles();
         this._buildDecorations();
+        this._buildBackground();
     }
 
     /**
@@ -93,17 +93,17 @@ export class Yard {
     _buildGround() {
         const { yardWidth, yardHeight } = this.def;
 
-        // --- Outer dirt ground (flat, extends beyond yard) ---
-        const outerGeo = new THREE.PlaneGeometry(yardWidth + 8, yardHeight + 8);
-        const outerMat = new THREE.MeshLambertMaterial({
-            color: 0xD2B48C,
+        // --- Far ground plane (flat base, extends very far) ---
+        const farGeo = new THREE.PlaneGeometry(300, 300);
+        const farMat = new THREE.MeshLambertMaterial({
+            color: 0x8BC34A,
             flatShading: true,
         });
-        const outerGround = new THREE.Mesh(outerGeo, outerMat);
-        outerGround.rotation.x = -Math.PI / 2;
-        outerGround.position.y = -0.15;
-        outerGround.receiveShadow = true;
-        this.group.add(outerGround);
+        const farGround = new THREE.Mesh(farGeo, farMat);
+        farGround.rotation.x = -Math.PI / 2;
+        farGround.position.y = -0.2;
+        farGround.receiveShadow = true;
+        this.group.add(farGround);
 
         // --- Mowed lawn terrain mesh (subdivided, vertex-displaced) ---
         const segX = Math.ceil(yardWidth * 3);  // ~3 subdivisions per unit
@@ -111,13 +111,15 @@ export class Yard {
         const lawnGeo = new THREE.PlaneGeometry(yardWidth, yardHeight, segX, segZ);
 
         // Displace vertices by terrain height
+        // PlaneGeometry is in XY plane. rotation.x = -PI/2 maps:
+        //   local X → world X,  local Y → world -Z,  local Z → world Y
+        // So world Z = -local_y, meaning we must query getHeightAt(lx, -ly)
         const posAttr = lawnGeo.getAttribute('position');
         for (let i = 0; i < posAttr.count; i++) {
-            // PlaneGeometry in XY, we'll rotate to XZ, so x=local x, y=local z before rotation
             const lx = posAttr.getX(i);
             const ly = posAttr.getY(i);
-            const h = this.getHeightAt(lx, ly);
-            posAttr.setZ(i, h); // before rotation, Z becomes Y after rotation
+            const h = this.getHeightAt(lx, -ly);
+            posAttr.setZ(i, h);
         }
         lawnGeo.computeVertexNormals();
 
@@ -131,22 +133,21 @@ export class Yard {
         this.group.add(lawn);
         this._lawnMesh = lawn;
 
-        // --- Outer terrain mesh (extends beyond fence, blends to flat) ---
-        const outerTerrainGeo = new THREE.PlaneGeometry(yardWidth + 8, yardHeight + 8,
-            Math.ceil((yardWidth + 8) * 2), Math.ceil((yardHeight + 8) * 2));
+        // --- Outer terrain mesh (extends well beyond play area, blends to flat) ---
+        const outerSize = Math.max(yardWidth, yardHeight) + 40;
+        const outerTerrainGeo = new THREE.PlaneGeometry(outerSize, outerSize,
+            Math.ceil(outerSize * 1.5), Math.ceil(outerSize * 1.5));
         const otPosAttr = outerTerrainGeo.getAttribute('position');
-        const hwOuter = (yardWidth + 8) / 2;
-        const hhOuter = (yardHeight + 8) / 2;
         const hw = yardWidth / 2;
         const hh = yardHeight / 2;
         for (let i = 0; i < otPosAttr.count; i++) {
             const lx = otPosAttr.getX(i);
             const ly = otPosAttr.getY(i);
             // Fade terrain to zero outside the yard bounds
-            const fadeX = Math.max(0, 1 - Math.max(0, Math.abs(lx) - hw) / 4);
-            const fadeZ = Math.max(0, 1 - Math.max(0, Math.abs(ly) - hh) / 4);
+            const fadeX = Math.max(0, 1 - Math.max(0, Math.abs(lx) - hw) / 10);
+            const fadeZ = Math.max(0, 1 - Math.max(0, Math.abs(-ly) - hh) / 10);
             const fade = fadeX * fadeZ;
-            const h = this.getHeightAt(lx, ly) * fade;
+            const h = this.getHeightAt(lx, -ly) * fade;
             otPosAttr.setZ(i, h);
         }
         outerTerrainGeo.computeVertexNormals();
@@ -307,74 +308,118 @@ export class Yard {
         return false;
     }
 
-    _buildFence() {
-        const { yardWidth, yardHeight, fenceColor } = this.def;
-        const hw = yardWidth / 2;
-        const hh = yardHeight / 2;
-        const postH = 0.8;
-        const railH = 0.08;
+    _buildBackground() {
+        const { yardWidth, yardHeight } = this.def;
+        const maxDim = Math.max(yardWidth, yardHeight);
 
-        const postGeo = new THREE.BoxGeometry(0.12, postH, 0.12);
-        const mat = new THREE.MeshLambertMaterial({ color: fenceColor, flatShading: true });
+        // --- Distant mountains (low-poly cones/pyramids in a ring) ---
+        const mountainColors = [0x7986CB, 0x9FA8DA, 0x7E8CC4, 0x6A78B8];
+        const snowColor = 0xE8EAF6;
+        const numMountains = 14;
+        const mountainDist = maxDim * 2.5 + 20;
 
-        const spacing = 1.5;
+        for (let i = 0; i < numMountains; i++) {
+            const angle = (i / numMountains) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            const dist = mountainDist + (Math.random() - 0.5) * 15;
+            const mx = Math.cos(angle) * dist;
+            const mz = Math.sin(angle) * dist;
+            const mHeight = 8 + Math.random() * 14;
+            const mRadius = 5 + Math.random() * 8;
 
-        const sides = [
-            { start: [-hw, -hh], end: [hw, -hh], axis: 'x' },
-            { start: [-hw, hh], end: [hw, hh], axis: 'x' },
-            { start: [-hw, -hh], end: [-hw, hh], axis: 'z' },
-            { start: [hw, -hh], end: [hw, hh], axis: 'z' },
-        ];
+            const mGeo = new THREE.ConeGeometry(mRadius, mHeight, 5 + Math.floor(Math.random() * 3));
+            const mMat = new THREE.MeshLambertMaterial({
+                color: mountainColors[i % mountainColors.length],
+                flatShading: true,
+            });
+            const mountain = new THREE.Mesh(mGeo, mMat);
+            mountain.position.set(mx, mHeight * 0.3, mz);
+            mountain.rotation.y = Math.random() * Math.PI;
+            this.group.add(mountain);
 
-        for (const side of sides) {
-            const isX = side.axis === 'x';
-            const len = isX ? yardWidth : yardHeight;
-            const numPosts = Math.floor(len / spacing) + 1;
+            // Snow cap on taller mountains
+            if (mHeight > 12) {
+                const capGeo = new THREE.ConeGeometry(mRadius * 0.35, mHeight * 0.25, 5);
+                const capMat = new THREE.MeshLambertMaterial({ color: snowColor, flatShading: true });
+                const cap = new THREE.Mesh(capGeo, capMat);
+                cap.position.set(mx, mHeight * 0.75, mz);
+                cap.rotation.y = mountain.rotation.y;
+                this.group.add(cap);
+            }
+        }
 
-            // Collect post positions and heights for rails
-            const posts = [];
-            for (let i = 0; i < numPosts; i++) {
-                const t = i / (numPosts - 1);
-                const x = side.start[0] + (side.end[0] - side.start[0]) * t;
-                const z = side.start[1] + (side.end[1] - side.start[1]) * t;
-                const terrainY = this.getHeightAt(x, z);
+        // --- Scattered background trees (beyond play area) ---
+        const bgTreeColors = [0x558B2F, 0x33691E, 0x2E7D32, 0x388E3C];
+        const numBgTrees = 40;
+        const treeMinDist = maxDim * 0.7;
+        const treeMaxDist = maxDim * 2.0;
 
-                const post = new THREE.Mesh(postGeo, mat);
-                post.position.set(x, terrainY + postH / 2, z);
-                post.castShadow = true;
-                this.group.add(post);
-                posts.push({ x, z, y: terrainY });
+        for (let i = 0; i < numBgTrees; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = treeMinDist + Math.random() * (treeMaxDist - treeMinDist);
+            const tx = Math.cos(angle) * dist;
+            const tz = Math.sin(angle) * dist;
+            const treeH = 1.5 + Math.random() * 2.5;
+            const treeR = 0.6 + Math.random() * 1.0;
+
+            const g = new THREE.Group();
+
+            // Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.08, 0.12, treeH * 0.5, 5);
+            const trunkMat = new THREE.MeshLambertMaterial({ color: 0x6D4C41, flatShading: true });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = treeH * 0.25;
+            g.add(trunk);
+
+            // Canopy (2 cones)
+            for (let j = 0; j < 2; j++) {
+                const cr = treeR * (1 - j * 0.3);
+                const ch = treeH * 0.45;
+                const cy = treeH * (0.4 + j * 0.28);
+                const cGeo = new THREE.ConeGeometry(cr, ch, 5 + Math.floor(Math.random() * 2));
+                const cMat = new THREE.MeshLambertMaterial({
+                    color: bgTreeColors[Math.floor(Math.random() * bgTreeColors.length)],
+                    flatShading: true,
+                });
+                const cone = new THREE.Mesh(cGeo, cMat);
+                cone.position.y = cy;
+                g.add(cone);
             }
 
-            // Build rails as segments between posts so they follow terrain
-            for (const railFrac of [0.35, 0.7]) {
-                const railY = postH * railFrac;
-                for (let i = 0; i < posts.length - 1; i++) {
-                    const p0 = posts[i];
-                    const p1 = posts[i + 1];
-                    const dx = p1.x - p0.x;
-                    const dz = p1.z - p0.z;
-                    const segLen = Math.sqrt(dx * dx + dz * dz);
-                    const midX = (p0.x + p1.x) / 2;
-                    const midZ = (p0.z + p1.z) / 2;
-                    const midY = (p0.y + p1.y) / 2;
+            const terrainY = this.getHeightAt(tx, tz) * 0.3; // partial terrain influence
+            g.position.set(tx, terrainY, tz);
+            this.group.add(g);
+        }
 
-                    const rGeo = new THREE.BoxGeometry(segLen, railH, 0.04);
-                    const rail = new THREE.Mesh(rGeo, mat);
-                    rail.position.set(midX, midY + railY, midZ);
+        // --- Clouds (floating flat ellipsoids) ---
+        const cloudColor = 0xFFFFFF;
+        const numClouds = 10;
+        for (let i = 0; i < numClouds; i++) {
+            const cx = (Math.random() - 0.5) * maxDim * 4;
+            const cz = (Math.random() - 0.5) * maxDim * 4;
+            const cy = 15 + Math.random() * 10;
 
-                    // Angle the rail to follow the slope between posts
-                    const dy = p1.y - p0.y;
-                    if (isX) {
-                        rail.rotation.z = Math.atan2(-dy, segLen);
-                    } else {
-                        rail.rotation.y = Math.PI / 2;
-                        rail.rotation.x = Math.atan2(dy, segLen);
-                    }
-
-                    this.group.add(rail);
-                }
+            const cloudGroup = new THREE.Group();
+            const numPuffs = 3 + Math.floor(Math.random() * 3);
+            for (let p = 0; p < numPuffs; p++) {
+                const pr = 1.0 + Math.random() * 2.0;
+                const pGeo = new THREE.SphereGeometry(pr, 7, 5);
+                const pMat = new THREE.MeshLambertMaterial({
+                    color: cloudColor,
+                    flatShading: true,
+                    transparent: true,
+                    opacity: 0.85,
+                });
+                const puff = new THREE.Mesh(pGeo, pMat);
+                puff.position.set(
+                    (Math.random() - 0.5) * 3,
+                    (Math.random() - 0.5) * 0.5,
+                    (Math.random() - 0.5) * 1.5
+                );
+                puff.scale.y = 0.4; // flatten
+                cloudGroup.add(puff);
             }
+            cloudGroup.position.set(cx, cy, cz);
+            this.group.add(cloudGroup);
         }
     }
 

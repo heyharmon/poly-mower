@@ -138,12 +138,10 @@ export class Mower {
 
         if (!this.running) return;
 
-        // Steering
+        // Steering - joystick controls direction, mower is self-propelled
         const inputMag = Math.sqrt(steerX * steerX + steerY * steerY);
         if (inputMag > 0.1) {
-            // Target angle from joystick (screen coords: steerX = right, steerY = down)
-            // In Three.js: +X = right, +Z = towards camera (down on screen)
-            // Drag right -> move +X, drag down -> move +Z
+            // Target angle from joystick
             const targetAngle = Math.atan2(steerX, steerY);
 
             // Smooth rotation towards target
@@ -153,9 +151,11 @@ export class Mower {
 
             const maxTurn = this.turnSpeed * dt;
             this.angle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+        }
 
-            // Move forward
-            const moveSpeed = this.speed * Math.min(inputMag, 1.0) * dt;
+        {
+            // Always move forward when running (self-propelled robot)
+            const moveSpeed = this.speed * dt;
             const newX = this.group.position.x + Math.sin(this.angle) * moveSpeed;
             const newZ = this.group.position.z + Math.cos(this.angle) * moveSpeed;
 

@@ -53,34 +53,22 @@ class Game {
     _initScene() {
         this.scene = new THREE.Scene();
 
-        // Fog for atmosphere
-        this.scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+        // Lighter fog for open-world feel with visible background
+        this.scene.fog = new THREE.FogExp2(0x87CEEB, 0.006);
 
-        // Sky background gradient - add a big sky sphere
-        const skyGeo = new THREE.SphereGeometry(80, 16, 12);
+        // Large sky sphere
+        const skyGeo = new THREE.SphereGeometry(200, 20, 14);
         const skyMat = new THREE.MeshBasicMaterial({
             color: 0x87CEEB,
             side: THREE.BackSide,
         });
         const sky = new THREE.Mesh(skyGeo, skyMat);
         this.scene.add(sky);
-
-        // Ground plane extending beyond yard
-        const farGroundGeo = new THREE.PlaneGeometry(200, 200);
-        const farGroundMat = new THREE.MeshLambertMaterial({
-            color: 0x8BC34A,
-            flatShading: true,
-        });
-        const farGround = new THREE.Mesh(farGroundGeo, farGroundMat);
-        farGround.rotation.x = -Math.PI / 2;
-        farGround.position.y = -0.1;
-        farGround.receiveShadow = true;
-        this.scene.add(farGround);
     }
 
     _initCamera() {
         const aspect = window.innerWidth / window.innerHeight;
-        this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 200);
+        this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 500);
         // Top-down slightly angled view - closer to the mower
         this.camera.position.set(0, 12, 7);
         this.camera.lookAt(0, 0, 0);
