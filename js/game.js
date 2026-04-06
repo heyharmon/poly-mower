@@ -8,6 +8,8 @@ import { Mower } from './mower.js';
 import { Yard } from './yard.js';
 import { LEVELS, GameSave } from './levels.js';
 import { UI } from './ui.js';
+import { Audio } from './audio.js';
+import { GrassParticles } from './particles.js';
 
 class Game {
     constructor() {
@@ -19,6 +21,12 @@ class Game {
         this.mower = null;
         this.currentLevelId = null;
         this.levelComplete = false;
+
+        // Audio
+        this.audio = new Audio();
+
+        // Particles
+        this.particles = new GrassParticles();
 
         // Raycasting for touch-to-world projection
         this._raycaster = new THREE.Raycaster();
@@ -114,9 +122,19 @@ class Game {
     }
 
     _bindCallbacks() {
-        this.ui.onStartLevel = (levelId) => this.startLevel(levelId);
+        this.ui.onStartLevel = (levelId) => {
+            // Init audio on first user gesture (required by iOS)
+            this.audio.init();
+            this.startLevel(levelId);
+        };
         this.controls.onToggleMower((running) => {
             if (this.mower) this.mower.running = running;
+            if (running) {
+                this.audio.resume();
+                this.audio.startEngine();
+            } else {
+                this.audio.stopEngine();
+            }
         });
     }
 
@@ -158,6 +176,10 @@ class Game {
         );
         this.mower.setPosition(levelDef.mowerStart.x, levelDef.mowerStart.z);
         this.scene.add(this.mower.group);
+
+        // Add particles to scene
+        this.scene.remove(this.particles.group);
+        this.scene.add(this.particles.group);
 
         // 3rd-person camera - fixed close behind the mower
         this._cameraOffset.set(0, 6, 8);
@@ -214,11 +236,26 @@ class Game {
             this.yard.colliders
         );
 
-        // Mow grass
+        // Mow grass + particles + sound
+        let isCutting = false;
         if (this.mower.running) {
             const pos = this.mower.getPosition();
-            this.yard.mowAt(pos.x, pos.z, this.mower.cutWidth);
+            const mowed = this.yard.mowAt(pos.x, pos.z, this.mower.cutWidth);
+            if (mowed > 0) {
+                isCutting = true;
+                // Spray grass clippings
+                const terrainY = this.yard.getHeightAt(pos.x, pos.z);
+                this.particles.emit(
+                    pos.x, terrainY, pos.z,
+                    this.mower.angle,
+                    Math.min(mowed * 2, 6)
+                );
+            }
         }
+        this.audio.mowTick(dt, isCutting);
+
+        // Update particles
+        this.particles.update(dt);
 
         // Update progress
         const progress = this.yard.getProgress();
@@ -253,6 +290,8 @@ class Game {
     _completeLevel(progress) {
         this.levelComplete = true;
         this.controls.disable();
+        this.audio.stopEngine();
+        this.audio.playComplete();
 
         const result = this.save.completeLevel(this.currentLevelId, Math.floor(progress * 100));
 
