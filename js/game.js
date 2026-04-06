@@ -28,10 +28,6 @@ class Game {
         // Particles
         this.particles = new GrassParticles();
 
-        // Raycasting for touch-to-world projection
-        this._raycaster = new THREE.Raycaster();
-        this._touchVec2 = new THREE.Vector2();
-        this._groundPlane = new THREE.Plane();
 
         this._initRenderer();
         this._initScene();
@@ -204,34 +200,15 @@ class Game {
     _update(dt) {
         if (!this.mower || !this.yard || this.levelComplete) return;
 
-        // Raycast touch position to world-space target on terrain
-        let targetX = 0, targetZ = 0, hasTarget = false;
-        if (this.controls.touchActive) {
-            // Cast a ray from camera through touch point
-            this._raycaster.setFromCamera(
-                this._touchVec2.set(this.controls.touchScreenX, this.controls.touchScreenY),
-                this.camera
-            );
-            // Intersect with a horizontal plane at the mower's Y height
-            const mowerY = this.yard.getHeightAt(
-                this.mower.getPosition().x, this.mower.getPosition().z
-            );
-            this._groundPlane.set(new THREE.Vector3(0, 1, 0), -mowerY);
-            const hit = new THREE.Vector3();
-            if (this._raycaster.ray.intersectPlane(this._groundPlane, hit)) {
-                targetX = hit.x;
-                targetZ = hit.z;
-                hasTarget = true;
-            }
-        }
+        // Sync mower angle back to controls so next touch starts from current heading
+        this.controls.setCurrentAngle(this.mower.angle);
 
-        // Update mower
+        // Update mower with target angle from controls
         const bounds = this.yard.getBounds();
         this.mower.update(
             dt,
-            targetX,
-            targetZ,
-            hasTarget,
+            this.controls.steerAngle,
+            this.controls.touchActive,
             bounds,
             this.yard.colliders
         );
@@ -291,7 +268,6 @@ class Game {
         this.levelComplete = true;
         this.controls.disable();
         this.audio.stopEngine();
-        this.audio.playComplete();
 
         const result = this.save.completeLevel(this.currentLevelId, Math.floor(progress * 100));
 
