@@ -28,28 +28,23 @@ export class UI {
     }
 
     _bindButtons() {
-        document.getElementById('btn-play').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-play').addEventListener('click', () => {
             this.showScreen('level-select');
         });
 
-        document.getElementById('btn-mowers').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-mowers').addEventListener('click', () => {
             this.showScreen('mower-select');
         });
 
-        document.getElementById('btn-back-title').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-back-title').addEventListener('click', () => {
             this.showScreen('title');
         });
 
-        document.getElementById('btn-back-levels').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-back-levels').addEventListener('click', () => {
             this.showScreen('level-select');
         });
 
-        document.getElementById('btn-next-level').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-next-level').addEventListener('click', () => {
             if (this._lastCompletedLevel) {
                 const nextId = this._lastCompletedLevel + 1;
                 if (nextId <= LEVELS.length && this.save.isLevelUnlocked(nextId)) {
@@ -60,43 +55,46 @@ export class UI {
             }
         });
 
-        document.getElementById('btn-replay').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-replay').addEventListener('click', () => {
             if (this._lastCompletedLevel && this.onStartLevel) {
                 this.onStartLevel(this._lastCompletedLevel);
             }
         });
 
-        document.getElementById('btn-to-levels').addEventListener('pointerdown', (e) => {
-            e.preventDefault();
+        document.getElementById('btn-to-levels').addEventListener('click', () => {
             this.showScreen('level-select');
         });
     }
 
     showScreen(name) {
-        // Hide all
-        this.titleScreen.classList.add('hidden');
-        this.levelSelectScreen.classList.add('hidden');
-        this.mowerSelectScreen.classList.add('hidden');
-        this.completeScreen.classList.add('hidden');
+        // Hide all overlays
+        const screens = [this.titleScreen, this.levelSelectScreen, this.mowerSelectScreen, this.completeScreen];
+        for (const s of screens) {
+            s.classList.add('hidden');
+            s.style.display = 'none';
+        }
         this.hud.style.display = 'none';
 
         switch (name) {
             case 'title':
+                this.titleScreen.style.display = 'flex';
                 this.titleScreen.classList.remove('hidden');
                 break;
             case 'level-select':
                 this._buildLevelGrid();
+                this.levelSelectScreen.style.display = 'flex';
                 this.levelSelectScreen.classList.remove('hidden');
                 break;
             case 'mower-select':
                 this._buildMowerGrid();
+                this.mowerSelectScreen.style.display = 'flex';
                 this.mowerSelectScreen.classList.remove('hidden');
                 break;
             case 'playing':
                 this.hud.style.display = 'flex';
                 break;
             case 'complete':
+                this.completeScreen.style.display = 'flex';
                 this.completeScreen.classList.remove('hidden');
                 break;
         }
@@ -118,8 +116,7 @@ export class UI {
             } else {
                 const stars = result ? '⭐'.repeat(result.stars) + '☆'.repeat(3 - result.stars) : '☆☆☆';
                 tile.innerHTML = `<span>${level.id}</span><span class="stars">${stars}</span>`;
-                tile.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
+                tile.addEventListener('click', () => {
                     if (this.onStartLevel) this.onStartLevel(level.id);
                 });
             }
@@ -151,10 +148,9 @@ export class UI {
             `;
 
             if (unlocked) {
-                card.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
+                card.addEventListener('click', () => {
                     this.save.selectMower(mower.id);
-                    this._buildMowerGrid(); // refresh
+                    this._buildMowerGrid();
                 });
             }
 
