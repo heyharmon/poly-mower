@@ -1,5 +1,5 @@
 /**
- * Touch controls for iPad - virtual joystick + mower button.
+ * Touch controls for iPad - fixed visible joystick + mower button.
  * Uses Pointer Events for unified touch/mouse handling.
  * Carefully tracks pointer IDs to avoid multi-touch glitches.
  */
@@ -12,7 +12,6 @@ export class Controls {
         this.enabled = false;
 
         this._joystickPointerId = null;
-        this._joystickOrigin = { x: 0, y: 0 };
         this._maxDrag = 55; // pixels
 
         this._zone = document.getElementById('joystick-zone');
@@ -22,23 +21,32 @@ export class Controls {
 
         this._onToggleMower = null;
 
+        // Cache the joystick center position (updated on enable/resize)
+        this._baseCenterX = 0;
+        this._baseCenterY = 0;
+
         this._bindEvents();
     }
 
     enable() {
         this.enabled = true;
         this._zone.style.display = 'block';
+        this._base.style.display = 'block';
+        this._thumb.style.display = 'block';
         this._btn.style.display = 'flex';
         this.mowerRunning = false;
         this._btn.textContent = 'START';
         this._btn.classList.remove('running');
+        this._updateBaseCenter();
+        this._resetThumb();
     }
 
     disable() {
         this.enabled = false;
         this._zone.style.display = 'none';
+        this._base.style.display = 'none';
+        this._thumb.style.display = 'none';
         this._btn.style.display = 'none';
-        this._hideJoystick();
         this.steerX = 0;
         this.steerY = 0;
     }
@@ -47,8 +55,18 @@ export class Controls {
         this._onToggleMower = cb;
     }
 
+    _updateBaseCenter() {
+        const rect = this._base.getBoundingClientRect();
+        this._baseCenterX = rect.left + rect.width / 2;
+        this._baseCenterY = rect.top + rect.height / 2;
+    }
+
+    _resetThumb() {
+        this._thumb.style.transform = 'translate(0px, 0px)';
+    }
+
     _bindEvents() {
-        // Mower button - use pointerdown for instant response
+        // Mower button
         this._btn.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -60,8 +78,11 @@ export class Controls {
             if (this._onToggleMower) this._onToggleMower(this.mowerRunning);
         });
 
-        // Joystick zone - pointer events
+        // Joystick - listen on zone for pointerdown
         this._zone.addEventListener('pointerdown', (e) => this._onPointerDown(e));
+        // Also allow starting directly on the base/thumb
+        this._base.addEventListener('pointerdown', (e) => this._onPointerDown(e));
+        this._thumb.addEventListener('pointerdown', (e) => this._onPointerDown(e));
 
         // Listen on document for move/up so dragging outside zone still works
         document.addEventListener('pointermove', (e) => this._onPointerMove(e));
@@ -76,34 +97,37 @@ export class Controls {
 
         document.addEventListener('gesturestart', (e) => e.preventDefault());
         document.addEventListener('gesturechange', (e) => e.preventDefault());
+
+        // Recalculate joystick center on resize/orientation change
+        window.addEventListener('resize', () => {
+            if (this.enabled) this._updateBaseCenter();
+        });
     }
 
     _onPointerDown(e) {
         if (!this.enabled) return;
-        if (this._joystickPointerId !== null) return; // already tracking a finger
+        if (this._joystickPointerId !== null) return;
 
         e.preventDefault();
         this._joystickPointerId = e.pointerId;
-        this._joystickOrigin.x = e.clientX;
-        this._joystickOrigin.y = e.clientY;
 
-        this._base.style.left = e.clientX + 'px';
-        this._base.style.top = e.clientY + 'px';
-        this._base.style.display = 'block';
+        // Recalculate center in case layout shifted
+        this._updateBaseCenter();
 
-        this._thumb.style.left = e.clientX + 'px';
-        this._thumb.style.top = e.clientY + 'px';
-        this._thumb.style.display = 'block';
+        // Immediately process position
+        this._processPointer(e.clientX, e.clientY);
 
-        // Capture this pointer so we get all its events
         try { this._zone.setPointerCapture(e.pointerId); } catch(_) {}
     }
 
     _onPointerMove(e) {
         if (e.pointerId !== this._joystickPointerId) return;
+        this._processPointer(e.clientX, e.clientY);
+    }
 
-        const dx = e.clientX - this._joystickOrigin.x;
-        const dy = e.clientY - this._joystickOrigin.y;
+    _processPointer(clientX, clientY) {
+        const dx = clientX - this._baseCenterX;
+        const dy = clientY - this._baseCenterY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         const clamped = Math.min(dist, this._maxDrag);
         const angle = Math.atan2(dy, dx);
@@ -111,10 +135,10 @@ export class Controls {
         const clampedX = Math.cos(angle) * clamped;
         const clampedY = Math.sin(angle) * clamped;
 
-        this._thumb.style.left = (this._joystickOrigin.x + clampedX) + 'px';
-        this._thumb.style.top = (this._joystickOrigin.y + clampedY) + 'px';
+        // Move thumb relative to its resting center
+        this._thumb.style.transform = `translate(${clampedX}px, ${clampedY}px)`;
 
-        // Normalize to -1..1 with a small deadzone
+        // Normalize to -1..1 with deadzone
         const norm = clamped / this._maxDrag;
         if (norm < 0.1) {
             this.steerX = 0;
@@ -131,11 +155,6 @@ export class Controls {
         this._joystickPointerId = null;
         this.steerX = 0;
         this.steerY = 0;
-        this._hideJoystick();
-    }
-
-    _hideJoystick() {
-        this._base.style.display = 'none';
-        this._thumb.style.display = 'none';
+        this._resetThumb();
     }
 }
