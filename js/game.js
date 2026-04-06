@@ -158,6 +158,7 @@ class Game {
         this._cameraOffset.set(0, 6, 8);
 
         // Update shadow camera for larger levels
+        const maxDim = Math.max(levelDef.yardWidth, levelDef.yardHeight);
         this._sun.shadow.camera.left = -maxDim;
         this._sun.shadow.camera.right = maxDim;
         this._sun.shadow.camera.top = maxDim;
