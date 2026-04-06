@@ -36,6 +36,7 @@ export class Yard {
     mowAt(x, z, cutWidth) {
         const halfCut = cutWidth / 2;
         let newlyMowed = 0;
+        const _zero = new THREE.Matrix4().makeScale(0, 0, 0);
 
         for (const cell of this.grassCells) {
             if (cell.mowed) continue;
@@ -43,9 +44,11 @@ export class Yard {
             const dz = Math.abs(cell.z - z);
             if (dx < halfCut && dz < halfCut) {
                 cell.mowed = true;
-                cell.mesh.material = this._mowedMaterial;
-                cell.mesh.scale.y = 0.3;
-                cell.mesh.position.y = -0.02;
+                // Hide all blade instances for this cell
+                for (const idx of cell.bladeIndices) {
+                    this._grassMesh.setMatrixAt(idx, _zero);
+                }
+                this._grassMesh.instanceMatrix.needsUpdate = true;
                 this.mowedCount++;
                 newlyMowed++;
             }
@@ -54,50 +57,147 @@ export class Yard {
     }
 
     _buildGround() {
-        // Base ground plane (slightly below grass)
-        const geo = new THREE.PlaneGeometry(this.def.yardWidth + 2, this.def.yardHeight + 2);
-        const mat = new THREE.MeshLambertMaterial({
-            color: 0xD2B48C, // dirt/path color
+        // Base ground plane - dirt outside the yard
+        const outerGeo = new THREE.PlaneGeometry(this.def.yardWidth + 4, this.def.yardHeight + 4);
+        const outerMat = new THREE.MeshLambertMaterial({
+            color: 0xD2B48C,
             flatShading: true,
         });
-        const ground = new THREE.Mesh(geo, mat);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.05;
-        ground.receiveShadow = true;
-        this.group.add(ground);
+        const outerGround = new THREE.Mesh(outerGeo, outerMat);
+        outerGround.rotation.x = -Math.PI / 2;
+        outerGround.position.y = -0.06;
+        outerGround.receiveShadow = true;
+        this.group.add(outerGround);
+
+        // Mowed lawn base - the fresh-cut color visible when grass blades are removed
+        const lawnGeo = new THREE.PlaneGeometry(this.def.yardWidth, this.def.yardHeight);
+        const lawnMat = new THREE.MeshLambertMaterial({
+            color: this.def.mowedColor,
+            flatShading: true,
+        });
+        const lawn = new THREE.Mesh(lawnGeo, lawnMat);
+        lawn.rotation.x = -Math.PI / 2;
+        lawn.position.y = -0.03;
+        lawn.receiveShadow = true;
+        this.group.add(lawn);
     }
 
     _buildGrass() {
-        const { yardWidth, yardHeight, grassResolution, groundColor, mowedColor } = this.def;
+        const { yardWidth, yardHeight, grassResolution, groundColor } = this.def;
         const res = grassResolution;
         const hw = yardWidth / 2;
         const hh = yardHeight / 2;
 
-        const cellGeo = new THREE.BoxGeometry(res * 0.95, 0.12, res * 0.95);
+        // Build a single grass blade geometry (a tapered triangle)
+        const bladeGeo = new THREE.BufferGeometry();
+        const bladeW = 0.04;
+        const bladeH = 0.18;
+        const vertices = new Float32Array([
+            -bladeW, 0, 0,       // bottom left
+             bladeW, 0, 0,       // bottom right
+             0, bladeH, 0,       // tip
+        ]);
+        bladeGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+        bladeGeo.computeVertexNormals();
+
+        const BLADES_PER_CELL = 4;
+
+        // First pass: count valid cells
+        const cells = [];
+        for (let x = -hw + res / 2; x < hw; x += res) {
+            for (let z = -hh + res / 2; z < hh; z += res) {
+                if (!this._isObstacleAt(x, z)) {
+                    cells.push({ x, z });
+                }
+            }
+        }
+
+        const totalInstances = cells.length * BLADES_PER_CELL;
+
+        // Grass color variations for natural look
+        const baseColor = new THREE.Color(groundColor);
+        const grassColors = [];
+        for (let i = 0; i < 5; i++) {
+            const c = baseColor.clone();
+            c.offsetHSL(
+                (Math.random() - 0.5) * 0.05,  // slight hue shift
+                (Math.random() - 0.5) * 0.1,    // saturation
+                (Math.random() - 0.5) * 0.08     // lightness
+            );
+            grassColors.push(c);
+        }
 
         const grassMat = new THREE.MeshLambertMaterial({
             color: groundColor,
             flatShading: true,
-        });
-        this._mowedMaterial = new THREE.MeshLambertMaterial({
-            color: mowedColor,
-            flatShading: true,
+            side: THREE.DoubleSide,
         });
 
-        for (let x = -hw + res / 2; x < hw; x += res) {
-            for (let z = -hh + res / 2; z < hh; z += res) {
-                // Skip cells that overlap with obstacles
-                if (this._isObstacleAt(x, z)) continue;
+        // Create InstancedMesh
+        const grassMesh = new THREE.InstancedMesh(bladeGeo, grassMat, totalInstances);
+        grassMesh.receiveShadow = true;
 
-                const mesh = new THREE.Mesh(cellGeo, grassMat);
-                mesh.position.set(x, 0.02, z);
-                mesh.receiveShadow = true;
-                this.group.add(mesh);
+        // Set up per-instance colors
+        const colorArray = new Float32Array(totalInstances * 3);
 
-                this.grassCells.push({ x, z, mowed: false, mesh });
-                this.totalCells++;
+        const _matrix = new THREE.Matrix4();
+        const _position = new THREE.Vector3();
+        const _rotation = new THREE.Euler();
+        const _quaternion = new THREE.Quaternion();
+        const _scale = new THREE.Vector3();
+
+        let instanceIdx = 0;
+
+        for (const cell of cells) {
+            const bladeIndices = [];
+
+            for (let b = 0; b < BLADES_PER_CELL; b++) {
+                // Random offset within cell
+                const ox = (Math.random() - 0.5) * res * 0.8;
+                const oz = (Math.random() - 0.5) * res * 0.8;
+
+                _position.set(cell.x + ox, 0, cell.z + oz);
+
+                // Random rotation around Y axis
+                _rotation.set(
+                    (Math.random() - 0.5) * 0.15,  // slight lean
+                    Math.random() * Math.PI * 2,     // full Y rotation
+                    0
+                );
+                _quaternion.setFromEuler(_rotation);
+
+                // Random height variation
+                const heightVar = 0.7 + Math.random() * 0.6;
+                _scale.set(1, heightVar, 1);
+
+                _matrix.compose(_position, _quaternion, _scale);
+                grassMesh.setMatrixAt(instanceIdx, _matrix);
+
+                // Per-instance color
+                const col = grassColors[Math.floor(Math.random() * grassColors.length)];
+                colorArray[instanceIdx * 3] = col.r;
+                colorArray[instanceIdx * 3 + 1] = col.g;
+                colorArray[instanceIdx * 3 + 2] = col.b;
+
+                bladeIndices.push(instanceIdx);
+                instanceIdx++;
             }
+
+            this.grassCells.push({
+                x: cell.x,
+                z: cell.z,
+                mowed: false,
+                bladeIndices,
+            });
+            this.totalCells++;
         }
+
+        // Apply instance colors
+        grassMesh.instanceColor = new THREE.InstancedBufferAttribute(colorArray, 3);
+        grassMesh.instanceMatrix.needsUpdate = true;
+
+        this._grassMesh = grassMesh;
+        this.group.add(grassMesh);
     }
 
     _isObstacleAt(x, z) {

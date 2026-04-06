@@ -81,12 +81,12 @@ class Game {
     _initCamera() {
         const aspect = window.innerWidth / window.innerHeight;
         this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 200);
-        // Top-down slightly angled view
-        this.camera.position.set(0, 18, 10);
+        // Top-down slightly angled view - closer to the mower
+        this.camera.position.set(0, 12, 7);
         this.camera.lookAt(0, 0, 0);
 
         this._cameraTarget = new THREE.Vector3(0, 0, 0);
-        this._cameraOffset = new THREE.Vector3(0, 18, 10);
+        this._cameraOffset = new THREE.Vector3(0, 12, 7);
     }
 
     _initLighting() {
@@ -161,10 +161,10 @@ class Game {
         this.mower.setPosition(levelDef.mowerStart.x, levelDef.mowerStart.z);
         this.scene.add(this.mower.group);
 
-        // Adjust camera for level size
+        // Adjust camera for level size - closer to the mower for more detail
         const maxDim = Math.max(levelDef.yardWidth, levelDef.yardHeight);
-        const camHeight = maxDim * 1.0 + 6;
-        const camBack = maxDim * 0.4 + 3;
+        const camHeight = maxDim * 0.6 + 5;
+        const camBack = maxDim * 0.25 + 3;
         this._cameraOffset.set(0, camHeight, camBack);
 
         // Update shadow camera for larger levels

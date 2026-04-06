@@ -133,8 +133,9 @@ export class Mower {
         const inputMag = Math.sqrt(steerX * steerX + steerY * steerY);
         if (inputMag > 0.1) {
             // Target angle from joystick (screen coords: steerX = right, steerY = down)
-            // In Three.js: +X = right, +Z = towards camera
-            const targetAngle = Math.atan2(-steerX, -steerY);
+            // In Three.js: +X = right, +Z = towards camera (down on screen)
+            // Drag right -> move +X, drag down -> move +Z
+            const targetAngle = Math.atan2(steerX, steerY);
 
             // Smooth rotation towards target
             let diff = targetAngle - this.angle;
