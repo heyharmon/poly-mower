@@ -101,7 +101,7 @@ class Game {
         sun.shadow.mapSize.width = 1024;
         sun.shadow.mapSize.height = 1024;
         sun.shadow.camera.near = 1;
-        sun.shadow.camera.far = 40;
+        sun.shadow.camera.far = 60;
         sun.shadow.camera.left = -15;
         sun.shadow.camera.right = 15;
         sun.shadow.camera.top = 15;
@@ -158,6 +158,11 @@ class Game {
         // Create mower
         const mowerDef = this.save.getSelectedMower();
         this.mower = new Mower(mowerDef);
+        // Wire up terrain so mower rides the surface
+        this.mower.setTerrain(
+            (x, z) => this.yard.getHeightAt(x, z),
+            (x, z) => this.yard.getNormalAt(x, z)
+        );
         this.mower.setPosition(levelDef.mowerStart.x, levelDef.mowerStart.z);
         this.scene.add(this.mower.group);
 
@@ -206,10 +211,11 @@ class Game {
         const progress = this.yard.getProgress();
         this.ui.updateProgress(progress);
 
-        // Camera follow
+        // Camera follow - track terrain height under mower
         const mPos = this.mower.getPosition();
+        const terrainY = this.yard.getHeightAt(mPos.x, mPos.z);
         this._cameraTarget.lerp(
-            new THREE.Vector3(mPos.x, 0, mPos.z),
+            new THREE.Vector3(mPos.x, terrainY, mPos.z),
             dt * 3
         );
         this.camera.position.copy(this._cameraTarget).add(this._cameraOffset);

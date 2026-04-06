@@ -57,6 +57,11 @@ export const LEVELS = [
         fenceColor: 0x8D6E63,
         groundColor: 0x7CB342,
         mowedColor: 0xA5D6A7,
+        terrain: [
+            { x: -4, z: -1, radius: 4.5, height: 1.0 },
+            { x: 3, z: 2, radius: 3.0, height: 0.6 },
+            { x: 5, z: -3, radius: 2.5, height: -0.4 },
+        ],
         obstacles: [
             { type: 'tree', x: -5, z: -3, scale: 1.0 },
             { type: 'tree', x: 4, z: -4, scale: 0.8 },
@@ -77,6 +82,13 @@ export const LEVELS = [
         fenceColor: 0x8D6E63,
         groundColor: 0x689F38,
         mowedColor: 0x9CCC65,
+        terrain: [
+            { x: -3, z: -2, radius: 5.0, height: 1.4 },
+            { x: 5, z: 1, radius: 3.5, height: 0.9 },
+            { x: -6, z: 4, radius: 3.0, height: 0.5 },
+            { x: 2, z: -5, radius: 2.0, height: -0.6 },
+            { x: 7, z: 5, radius: 2.5, height: -0.3 },
+        ],
         obstacles: [
             { type: 'tree', x: -6, z: -4, scale: 1.2 },
             { type: 'tree', x: 5, z: -2, scale: 0.9 },
@@ -100,6 +112,13 @@ export const LEVELS = [
         fenceColor: 0xBCAAA4,
         groundColor: 0x558B2F,
         mowedColor: 0x8BC34A,
+        terrain: [
+            { x: 0, z: -3, radius: 5.0, height: 1.8 },
+            { x: -5, z: 3, radius: 3.0, height: 0.7 },
+            { x: 4, z: 5, radius: 3.5, height: 1.0 },
+            { x: -3, z: -6, radius: 2.5, height: -0.5 },
+            { x: 5, z: -1, radius: 2.0, height: -0.4 },
+        ],
         obstacles: [
             { type: 'tree', x: -4, z: -5, scale: 1.3 },
             { type: 'tree', x: 3, z: -6, scale: 1.0 },
@@ -123,6 +142,15 @@ export const LEVELS = [
         fenceColor: 0x795548,
         groundColor: 0x7CB342,
         mowedColor: 0xC5E1A5,
+        terrain: [
+            { x: -5, z: -3, radius: 6.0, height: 2.0 },
+            { x: 5, z: 2, radius: 4.5, height: 1.5 },
+            { x: -2, z: 5, radius: 3.5, height: 1.0 },
+            { x: 8, z: -5, radius: 3.0, height: 0.8 },
+            { x: 0, z: -6, radius: 4.0, height: -0.8 },
+            { x: -8, z: 0, radius: 2.5, height: -0.5 },
+            { x: 6, z: 6, radius: 3.0, height: 0.6 },
+        ],
         obstacles: [
             { type: 'tree', x: -7, z: -5, scale: 1.5 },
             { type: 'tree', x: 0, z: -6, scale: 1.2 },
@@ -147,6 +175,16 @@ export const LEVELS = [
         fenceColor: 0xA1887F,
         groundColor: 0x33691E,
         mowedColor: 0x7CB342,
+        terrain: [
+            { x: -7, z: -4, radius: 5.5, height: 2.2 },
+            { x: 4, z: -6, radius: 4.0, height: 1.6 },
+            { x: 8, z: 3, radius: 4.5, height: 1.8 },
+            { x: -4, z: 5, radius: 5.0, height: 1.2 },
+            { x: 0, z: 0, radius: 3.0, height: -1.0 },
+            { x: -9, z: -1, radius: 3.0, height: 0.7 },
+            { x: 3, z: 7, radius: 3.5, height: -0.6 },
+            { x: 9, z: -5, radius: 2.5, height: 0.5 },
+        ],
         obstacles: [
             { type: 'tree', x: -9, z: -7, scale: 1.6 },
             { type: 'tree', x: -3, z: -8, scale: 1.1 },
@@ -176,6 +214,13 @@ export const LEVELS = [
         fenceColor: 0x6D4C41,
         groundColor: 0x558B2F,
         mowedColor: 0xAED581,
+        terrain: [
+            { x: 0, z: 0, radius: 5.0, height: 1.5 },
+            { x: -5, z: -5, radius: 3.0, height: 0.8 },
+            { x: 5, z: -5, radius: 3.0, height: 0.8 },
+            { x: -5, z: 5, radius: 3.5, height: -0.6 },
+            { x: 5, z: 5, radius: 2.5, height: 0.5 },
+        ],
         obstacles: [
             { type: 'hedge', x: -2, z: -4, w: 6, h: 0.5 },
             { type: 'hedge', x: -2, z: 0, w: 0.5, h: 4 },

@@ -93,9 +93,18 @@ export class Mower {
         this.group.add(shadow);
     }
 
+    /** Set the terrain query functions (called by Game after yard is created) */
+    setTerrain(getHeightAt, getNormalAt) {
+        this._getHeightAt = getHeightAt;
+        this._getNormalAt = getNormalAt;
+    }
+
     setPosition(x, z) {
         this.group.position.x = x;
         this.group.position.z = z;
+        if (this._getHeightAt) {
+            this.group.position.y = this._getHeightAt(x, z);
+        }
     }
 
     getPosition() {
@@ -198,8 +207,29 @@ export class Mower {
         // Apply rotation
         this.group.rotation.y = this.angle;
 
-        // Small bob animation
-        this.group.position.y = Math.sin(Date.now() * 0.006) * 0.015;
+        // Terrain following: set Y position and tilt to match surface
+        if (this._getHeightAt) {
+            const tx = this.group.position.x;
+            const tz = this.group.position.z;
+            const terrainY = this._getHeightAt(tx, tz);
+            // Small bob on top of terrain height
+            this.group.position.y = terrainY + Math.sin(Date.now() * 0.006) * 0.01;
+
+            // Tilt mower to match terrain normal
+            if (this._getNormalAt) {
+                const normal = this._getNormalAt(tx, tz);
+                // Create a rotation that aligns the mower's up vector with the terrain normal
+                // while preserving the heading (rotation.y)
+                const up = new THREE.Vector3(0, 1, 0);
+                const qTilt = new THREE.Quaternion().setFromUnitVectors(up, normal);
+                const qHeading = new THREE.Quaternion().setFromAxisAngle(up, this.angle);
+                // Apply heading first, then tilt
+                const qFinal = qTilt.multiply(qHeading);
+                this.group.quaternion.copy(qFinal);
+            }
+        } else {
+            this.group.position.y = Math.sin(Date.now() * 0.006) * 0.015;
+        }
     }
 
     _collidesWithObstacle(x, z, obs) {
