@@ -143,39 +143,18 @@
             box-shadow: 0 4px 16px rgba(255, 112, 67, 0.4);
         }
 
-        /* Virtual Joystick - always visible, fixed position */
-        #joystick-zone {
+        /* Touch indicator - shows where you're touching */
+        #touch-indicator {
+            display: none;
             position: fixed;
-            bottom: 0;
-            right: 0;
-            width: 50%;
-            height: 45%;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2.5px solid rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.15);
             z-index: 15;
-        }
-
-        #joystick-base {
-            position: fixed;
-            bottom: calc(env(safe-area-inset-bottom, 20px) + 30px);
-            right: 80px;
-            width: 130px;
-            height: 130px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.18);
-            border: 2.5px solid rgba(255, 255, 255, 0.35);
-            z-index: 16;
-            transform: translate(50%, 50%);
-        }
-
-        #joystick-thumb {
-            position: fixed;
-            bottom: calc(env(safe-area-inset-bottom, 20px) + 30px + 41px);
-            right: calc(80px + 41px);
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.65);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.18);
-            z-index: 17;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
         }
 
         /* Menu Screens */
@@ -376,10 +355,8 @@
     <!-- Mower Button -->
     <button id="mower-btn" style="display:none;">START</button>
 
-    <!-- Joystick Zone -->
-    <div id="joystick-zone" style="display:none;"></div>
-    <div id="joystick-base"></div>
-    <div id="joystick-thumb"></div>
+    <!-- Touch indicator -->
+    <div id="touch-indicator"></div>
 
     <!-- Title Screen -->
     <div id="title-screen" class="screen-overlay">

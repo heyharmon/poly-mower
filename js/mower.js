@@ -111,7 +111,7 @@ export class Mower {
         return { x: this.group.position.x, z: this.group.position.z };
     }
 
-    update(dt, steerX, steerY, bounds, obstacles) {
+    update(dt, targetX, targetZ, hasTarget, bounds, obstacles) {
         // Animate blade
         if (this.running) {
             this._bladeAngle += dt * 15;
@@ -138,19 +138,23 @@ export class Mower {
 
         if (!this.running) return;
 
-        // Steering - joystick controls direction, mower is self-propelled
-        const inputMag = Math.sqrt(steerX * steerX + steerY * steerY);
-        if (inputMag > 0.1) {
-            // Target angle from joystick
-            const targetAngle = Math.atan2(steerX, steerY);
+        // Steering - mower drives toward the world-space target point
+        if (hasTarget) {
+            const dx = targetX - this.group.position.x;
+            const dz = targetZ - this.group.position.z;
+            const distToTarget = Math.sqrt(dx * dx + dz * dz);
 
-            // Smooth rotation towards target
-            let diff = targetAngle - this.angle;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            while (diff < -Math.PI) diff += Math.PI * 2;
+            // Only steer if target is far enough from mower
+            if (distToTarget > 0.3) {
+                const targetAngle = Math.atan2(dx, dz);
 
-            const maxTurn = this.turnSpeed * dt;
-            this.angle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+                let diff = targetAngle - this.angle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+
+                const maxTurn = this.turnSpeed * dt;
+                this.angle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+            }
         }
 
         {
