@@ -88,19 +88,31 @@ export class Yard {
         const hw = yardWidth / 2;
         const hh = yardHeight / 2;
 
-        // Build a single grass blade geometry (a tapered triangle)
+        // Grass blade geometry - tall, slightly curved quad (2 triangles)
+        // Taller than the mower (~0.3 high), like thick overgrown weeds
         const bladeGeo = new THREE.BufferGeometry();
-        const bladeW = 0.04;
-        const bladeH = 0.18;
+        const bladeW = 0.06;   // wider blades
+        const bladeH = 0.55;   // tall - well above the mower
+        const bladeMid = bladeH * 0.55;
+        const bladeBend = 0.03; // slight forward bend at midpoint
         const vertices = new Float32Array([
-            -bladeW, 0, 0,       // bottom left
-             bladeW, 0, 0,       // bottom right
-             0, bladeH, 0,       // tip
+            // Lower triangle
+            -bladeW, 0, 0,
+             bladeW, 0, 0,
+             bladeW * 0.7, bladeMid, bladeBend,
+            // Upper triangle (tapers to tip)
+            -bladeW, 0, 0,
+             bladeW * 0.7, bladeMid, bladeBend,
+            -bladeW * 0.7, bladeMid, bladeBend,
+            // Mid-to-tip triangle (front face)
+            -bladeW * 0.7, bladeMid, bladeBend,
+             bladeW * 0.7, bladeMid, bladeBend,
+             0, bladeH, bladeBend * 2.5,
         ]);
         bladeGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
         bladeGeo.computeVertexNormals();
 
-        const BLADES_PER_CELL = 4;
+        const BLADES_PER_CELL = 14;  // thick dense grass
 
         // First pass: count valid cells
         const cells = [];
@@ -114,15 +126,15 @@ export class Yard {
 
         const totalInstances = cells.length * BLADES_PER_CELL;
 
-        // Grass color variations for natural look
+        // Grass color variations - wide range for natural thick grass look
         const baseColor = new THREE.Color(groundColor);
         const grassColors = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 12; i++) {
             const c = baseColor.clone();
             c.offsetHSL(
-                (Math.random() - 0.5) * 0.05,  // slight hue shift
-                (Math.random() - 0.5) * 0.1,    // saturation
-                (Math.random() - 0.5) * 0.08     // lightness
+                (Math.random() - 0.5) * 0.08,   // hue shift
+                (Math.random() - 0.5) * 0.15,    // saturation
+                (Math.random() - 0.5) * 0.12     // lightness - some dark, some bright
             );
             grassColors.push(c);
         }
@@ -136,6 +148,7 @@ export class Yard {
         // Create InstancedMesh
         const grassMesh = new THREE.InstancedMesh(bladeGeo, grassMat, totalInstances);
         grassMesh.receiveShadow = true;
+        grassMesh.castShadow = true;
 
         // Set up per-instance colors
         const colorArray = new Float32Array(totalInstances * 3);
@@ -152,23 +165,25 @@ export class Yard {
             const bladeIndices = [];
 
             for (let b = 0; b < BLADES_PER_CELL; b++) {
-                // Random offset within cell
-                const ox = (Math.random() - 0.5) * res * 0.8;
-                const oz = (Math.random() - 0.5) * res * 0.8;
+                // Spread blades across the full cell with some overlap
+                const ox = (Math.random() - 0.5) * res * 1.0;
+                const oz = (Math.random() - 0.5) * res * 1.0;
 
                 _position.set(cell.x + ox, 0, cell.z + oz);
 
-                // Random rotation around Y axis
+                // Random rotation + lean for wild overgrown look
                 _rotation.set(
-                    (Math.random() - 0.5) * 0.15,  // slight lean
+                    (Math.random() - 0.5) * 0.4,   // lean forward/back
                     Math.random() * Math.PI * 2,     // full Y rotation
-                    0
+                    (Math.random() - 0.5) * 0.3      // lean side to side
                 );
                 _quaternion.setFromEuler(_rotation);
 
-                // Random height variation
+                // Height variation - most are tall, some shorter
                 const heightVar = 0.7 + Math.random() * 0.6;
-                _scale.set(1, heightVar, 1);
+                // Width variation too
+                const widthVar = 0.8 + Math.random() * 0.5;
+                _scale.set(widthVar, heightVar, widthVar);
 
                 _matrix.compose(_position, _quaternion, _scale);
                 grassMesh.setMatrixAt(instanceIdx, _matrix);
